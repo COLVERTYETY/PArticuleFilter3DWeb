@@ -1,0 +1,111 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #333;
+}
+
+#container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.hover-popup {
+    font-family: Arial, sans-serif;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    pointer-events: none; /* Prevent it from blocking mouse events */
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.sensor-popup {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    position: absolute;
+    pointer-events: auto;
+    width: 260px; /* Adjusted width */
+    line-height: 1.6; /* Consistent spacing */
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 10px; /* Adds separation */
+}
+
+.popup-close {
+    color: red;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px; /* Adds separation between elements */
+    gap: 8px; /* Space between checkbox and label */
+}
+
+input[type="number"] {
+    width: 50%;
+    padding: 5px;
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    outline: none;
+    margin-top: 5px;
+}
+
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+/* button {
+    display: none; /* Close button replaced by the 'X' */
+/*} */
+
+.popup-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px; /* Adds space between buttons */
+    margin-top: 10px; /* Adds space above the buttons */
+}
+
+.popup-button {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    background-color: #444; /* Dark gray background */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    flex: 1; /* Ensure buttons take up equal space */
+    text-align: center;
+}
+
+.popup-button:hover {
+    background-color: #555; /* Slightly lighter gray on hover */
+}

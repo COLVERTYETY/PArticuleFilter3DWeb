@@ -1,0 +1,32 @@
+<div class="sensor-popup">
+    <div class="popup-header">
+        <span>Sensor ID: {{id}}</span>
+        <span class="popup-close" style="cursor: pointer;">&times;</span>
+    </div>
+    <div>Position: (<span id="sensor-x">{{x}}</span>, <span id="sensor-y">{{y}}</span>, <span id="sensor-z">{{z}}</span>)</div>
+    <div>Estimated Position: (<span id="sensor-est-x">{{estX}}</span>, <span id="sensor-est-y">{{estY}}</span>, <span id="sensor-est-z">{{estZ}}</span>)</div>
+    <div>Position Error: <span id="sensor-pos-error">{{posError}}</span></div>
+    <div>Variance: <span id="sensor-variance">{{variance}}</span></div>
+    <div>Antenna Delay: <span id="sensor-antenna-delay">{{antennaDelay}}</span></div>
+    <div>Estimated Antenna Delay: <span id="sensor-est-antenna-delay">{{estAntennaDelay}}</span></div>
+    <div>Antenna Delay Error: <span id="sensor-antenna-error">{{antennaError}}</span></div>
+    <label>
+        N Particles: <input type="number" id="N-{{id}}" value="{{N}}" min="0">
+    </label>
+    <label>
+        <input type="checkbox" id="isAnchor-{{id}}" {{isAnchor}}> Is Anchor
+    </label>
+    <label>
+        <input type="checkbox" id="showParticles-{{id}}" {{showParticles}}> Show Particles
+    </label>
+    <label>
+        <input type="checkbox" id="showEstimation-{{id}}" {{showEstimation}}> Show Estimation
+    </label>
+    <label>
+        <input type="checkbox" id="showGroundTruth-{{id}}" {{showGroundTruth}} checked> Show Ground Truth
+    </label>
+    <div class="popup-buttons">
+        <button id="updateFromAnchors-{{id}}" class="popup-button">Update from Anchors</button>
+        <button id="updateFromMesh-{{id}}" class="popup-button">Update from Mesh</button>
+    </div>
+</div>
