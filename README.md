@@ -18,7 +18,7 @@ This is a demo of a particle filter algorithm running in a web browser. It showc
 
 
 ## How to Use
-To run the demo, access the following (link)[no link yet check back later].
+To run the demo, access the following [link](https://colvertyety.github.io/PArticuleFilter3DWeb/).
 
 ## Interactions:
 
