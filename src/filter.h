@@ -7,7 +7,7 @@
 // Define the particle particle structure
 struct particle {
     float x, y, z, d, w;
-} typedef particle;
+};
 
 // Define the Filter class
 class Filter {
