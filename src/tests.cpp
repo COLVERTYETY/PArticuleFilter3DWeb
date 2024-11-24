@@ -81,8 +81,61 @@ TEST(FilterTest, EstimateState) {
 
 }
 
+TEST(FilterTest, RandomizedConvergence){
+    particle anchor0{ 2, 0.5, -8, 0.0, 0.01 };
+    particle anchor1{ 12, 0.5, -8, 0.0, 0.01 };
+    particle anchor2{ 12, 14, -8, 0.0, 0.01 };
+    particle anchor3{ 12, 0.5, 2, 0.0, 0.01 };
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    for(int i=0; i<50;i++){
+        Filter test(1000, false);
+        particle randPos{static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), 0.0f, 0.01f};
+        int estimationRounds = 20;
+        for(int j = 0; j<estimationRounds;j++){
+            for(auto anchor: anchors){
+                test.estimateState(dist(randPos, anchor), anchor);
+            }
+        }
+        particle estimate = test.getEstimate();
+        // std::cout << "Estimated position after "<<estimationRounds<<" updates: (" << estimate.x << ", " << estimate.y << ", " << estimate.z << ", " << estimate.d << ", "<< estimate.w<<")" << std::endl;
+        // std::cout << "Estimated distance after "<<estimationRounds<<" updates: " << dist(estimate, randPos) <<" with variance: "<< estimate.w <<std::endl;
+        //  check that the estimated position is close to the true position
+        EXPECT_NEAR(estimate.x, randPos.x, 1.5);
+        EXPECT_NEAR(estimate.y, randPos.y, 1.5);
+        EXPECT_NEAR(estimate.z, randPos.z, 1.5);
+    }
+}
+
+TEST(FilterTest, ConvergenceAnchors){
+    particle anchor0{ 2, 0.5, -8, 0.0, 0.01 };
+    particle anchor1{ 12, 0.5, -8, 0.0, 0.01 };
+    particle anchor2{ 12, 14, -8, 0.0, 0.01 };
+    particle anchor3{ 12, 0.5, 2, 0.0, 0.01 };
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    std::ofstream memLog("NParticlesConvergence.csv");
+    memLog << "N,Error\n";
+    for(int N=10; N<1000; N+=10){
+        float error = 0;
+        for(int i=0; i<50;i++){
+            Filter test(N, false);
+            particle randPos{static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), static_cast<float>(static_cast<float>(rand()) / RAND_MAX * 50.0f - 25.0f), 0.0f, 0.01f};
+            int estimationRounds = 20;
+            for(int j = 0; j<estimationRounds;j++){
+                for(auto anchor: anchors){
+                    test.estimateState(dist(randPos, anchor), anchor);
+                }
+            }
+            particle estimate = test.getEstimate();
+            error += dist(estimate, randPos);
+        }
+        error /= 50;
+        memLog << N << "," << error << "\n";
+    }
+    memLog.close();
+}
+
 TEST(FilterTest, EstimateGeometry) {
-    std::ofstream memLog("Geometry convergence.csv");
+    std::ofstream memLog("Geometry_convergence.csv");
     memLog << "id, x,y,z,d,w,distance\n";
     Filter node0(1000, false);
     Filter node1(1000, false);

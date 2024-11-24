@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Sensor } from './sensors.js';
 import { SensorPopup } from './sensorPopup.js';
-
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js'
 
 // Basic Three.js setup
 const container = document.getElementById('container');
@@ -14,6 +14,119 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
+
+// gui
+const gui = new GUI();
+// scenarios
+const scenarios = gui.addFolder('Scenarios');
+// Create a few sensor objects
+// new Sensor(0, 0.5, 0, scene, { isAnchor: false, N: 1000 });
+// new Sensor(5, 0.5, 5, scene, { isAnchor: true, N: 100 });
+// new Sensor(10, 0.5, -15, scene, { isAnchor: true, N: 500 });
+// new Sensor(-10, 0.5, -15, scene, { isAnchor: true, N: 200 });
+// new Sensor(-15, 0.5, 15, scene, { isAnchor: true, N: 300 });
+// Define scenarios with sensor configurations
+const scenarioDefinitions = {
+    "Default": [
+        { x: 0, y: 0.5, z: 0, isAnchor: false, N: 10000 },
+        { x: 5, y: 0.5, z: 5, isAnchor: true, N: 1 },
+        { x: 10, y: 0.5, z: -15, isAnchor: true, N: 1 },
+        { x: -10, y: 0.5, z: -15, isAnchor: true, N: 1 },
+        { x: -15, y: 0.5, z: 15, isAnchor: true, N: 1 },
+    ],
+    "line": [
+        //  dropped sensors
+        { x: -3, y: 0.5, z: 5, isAnchor: false, N: 10000 },
+        { x: -6, y: 0.5, z: 12, isAnchor: false, N: 10000 },
+        { x: -9, y: 0.5, z: 16, isAnchor: false, N: 10000 },
+        { x: -4, y: 0.5, z: 20, isAnchor: false, N: 10000 },
+        // rover path
+        { x: 2, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: 4, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: 8, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 22, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: -10, y: 0.5, z: 40, isAnchor: true, N: 1 },
+    ],
+    "orthogonal": [
+        // droped sensors
+        { x: -3, y: 0.5, z: 5, isAnchor: false, N: 10000 },
+        { x: -6, y: 0.5, z: 12, isAnchor: false, N: 10000 },
+        { x: -9, y: 0.5, z: 16, isAnchor: false, N: 10000 },
+        { x: -4, y: 0.5, z: 20, isAnchor: false, N: 10000 },
+        // rover path
+        { x: 2, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: 4, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: 8, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 0.5, z: 2, isAnchor: true, N: 1 },
+    ],
+    "perfect": [
+        { x: -3, y: 0.5, z: 5, isAnchor: false, N: 10000 },
+        { x: -6, y: 0.5, z: 12, isAnchor: false, N: 10000 },
+        { x: -9, y: 0.5, z: 16, isAnchor: false, N: 10000 },
+        { x: -4, y: 0.5, z: 20, isAnchor: false, N: 10000 },
+        // reference
+        { x: 2, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        // { x: 4, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 14, z: -8, isAnchor: true, N: 1 },
+        // { x: 8, y: 0.5, z: -8, isAnchor: true, N: 1 },
+        { x: 12, y: 0.5, z: 2, isAnchor: true, N: 1 },
+    ]
+};
+
+// Add scenarios to the GUI
+const scenarioSelector = scenarios.add({ selected: "Default" }, "selected", Object.keys(scenarioDefinitions))
+    .name("Select Scenario")
+    .onChange((value) => loadScenario(value));
+
+// Function to load a scenario
+function loadScenario(name) {
+    // Clear existing sensors from the scene
+    Sensor.sensorList.forEach(sensor => {
+        sensor.removeFromScene();
+    });
+    Sensor.sensorList.length = 0;
+
+    // Add new sensors based on the selected scenario
+    const selectedScenario = scenarioDefinitions[name];
+    selectedScenario.forEach(config => {
+        new Sensor(config.x, config.y, config.z, scene, { isAnchor: config.isAnchor, N: config.N });
+    });
+}
+
+// Add a section to the GUI for updating
+const updatesFolder = gui.addFolder('Updates');
+
+// Functions to handle the updates
+function updateFromAnchors() {
+    // Implement the logic for updating from anchors
+    Sensor.sensorList.forEach(sensor => {
+        if (!sensor.isAnchor) {
+            sensor.updateFromAnchors();
+        }
+    });
+}
+
+function updateFromMesh() {
+    Sensor.sensorList.forEach(sensor => {
+        if (!sensor.isAnchor) {
+            console.log('update from mesh', sensor.id);
+            sensor.updateFromMesh();
+        }
+    });
+}
+
+// Add buttons to the GUI
+updatesFolder.add({ updateFromAnchors }, 'updateFromAnchors').name("Update all from Anchors");
+updatesFolder.add({ updateFromMesh }, 'updateFromMesh').name("Update all from Mesh");
+
+// Open the updates folder by default
+updatesFolder.open();
+
+
+
 
 // Load the spherical skybox texture
 const textureLoader = new THREE.TextureLoader();
@@ -134,12 +247,9 @@ window.addEventListener('keydown', (event) => {
 // Ensure the popup template is loaded before creating sensors
 await SensorPopup.loadTemplate();
 await Sensor.loadModel('assets/HexSense.gltf'); // Load the GLTF model
-// Create a few sensor objects
-new Sensor(0, 0.5, 0, scene, { isAnchor: false, N: 1000 });
-new Sensor(5, 0.5, 5, scene, { isAnchor: true, N: 100 });
-new Sensor(10, 0.5, -15, scene, { isAnchor: true, N: 500 });
-new Sensor(-10, 0.5, -15, scene, { isAnchor: true, N: 200 });
-new Sensor(-15, 0.5, 15, scene, { isAnchor: true, N: 300 });
+
+// Initially load the default scenario
+loadScenario("Default");
 // Raycaster for detecting clicks
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();

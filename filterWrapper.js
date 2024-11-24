@@ -71,7 +71,11 @@ class FilterWrapper {
         particle.z = z;
         particle.d = d;
         particle.w = c;
+        
+        const startTime = performance.now();
         this.filterInstance.estimateState(measure, particle);
+        const endTime = performance.now();
+        console.log(`estimateState call took ${endTime - startTime} milliseconds.`);
     }
 
     getEstimatedPosition() {

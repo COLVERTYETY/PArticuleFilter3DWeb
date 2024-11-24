@@ -11,6 +11,7 @@ function gaussianRandom(mean=0, stdev=1) {
     // Transform to the desired mean and standard deviation:
     return z * stdev + mean;
 }
+const MAXDISPLAYN = 500;
 
 class Sensor {
     static sensorId = 0;
@@ -29,7 +30,7 @@ class Sensor {
         this.isAnchor = isAnchor;
         this.isInit = false;
         if(isAnchor){
-            this.variance = 1; //high confidence
+            this.variance = 0.01; //high confidence
             this.estimatedpos = new THREE.Vector3(x, y, z);
             this.AntennaDelay = 0;
         } else{
@@ -40,13 +41,13 @@ class Sensor {
         }
         this.N = N;
         this.oldN = N;
-        this.filter = new FilterWrapper(N); // Add Filter instance
+        this.filter = new FilterWrapper(N, false); // Add Filter instance
         this.id = Sensor.sensorId++;
         Sensor.sensorList.push(this);
         this.popup = null; // Initialize popup reference
         this.sphere = null;
         this.showParticles= false;
-        this.showEstimation = true;
+        this.showEstimation = false;
         this.showGroundTruth = true;
         this.estimatedParticule= null;
         this.particles = [];
@@ -100,14 +101,16 @@ class Sensor {
 
     initParticles() {
         //  init the array of particules as a array of spheres in the scene
-        for (let i = 0; i < this.N; i++) {
+        this.particles = [];
+        
+        for (let i = 0; i < this.N && i< MAXDISPLAYN ; i++) {
             const particle = new THREE.Vector3(
                 this.position.x + gaussianRandom(0, 20),
                 this.position.y + gaussianRandom(0, 20),
                 this.position.z + gaussianRandom(0, 20)
             );
             const geometry = new THREE.SphereGeometry(0.1, 32, 32);
-            const material = new THREE.MeshBasicMaterial({ color: 0x00EE00, opacity: 0.5, transparent: true });
+            const material = new THREE.MeshBasicMaterial({ color: 0x00EE00, opacity: 0.3, transparent: true });
             const sphere = new THREE.Mesh(geometry, material);
             sphere.position.set(particle.x, particle.y, particle.z);
             this.particles.push(sphere);
@@ -194,19 +197,27 @@ class Sensor {
             this.oldN = this.N;
             this.initParticles();
         }
+        if(this.isAnchor){
+            this.variance = 0.01; //high confidence
+            this.estimatedpos = new THREE.Vector3(this.position.x, this.position.y, this.position.z);
+            this.AntennaDelay = 0;
+        }
     }
     
     static Measure(A, B){
         let gtDistance = A.position.distanceTo(B.position);
         // let AntennaNoise= A.AntennaDelay*gtDistance + B.AntennaDelay*gtDistance;
         let AntennaNoise = 0;
-        let gNoise = gaussianRandom(0, 0.1);
+        // let gNoise = gaussianRandom(0, 0.1);
+        let gNoise = 0;
         let distance = gtDistance + AntennaNoise + gNoise;
+        console.log(`Measuring distance between sensor ${A.id} and sensor ${B.id}`);
+        console.log(`disatnce is: ${distance}`);
         return distance
     }
     updateParticles() {
         //  update the position of the particules
-        for (let i = 0; i < this.N; i++) {
+        for (let i = 0; i < this.N && i< MAXDISPLAYN; i++) {
             const particle = this.filter.get(i);
             this.particles[i].position.set(particle.x, particle.y, particle.z);
         }
@@ -222,6 +233,11 @@ class Sensor {
         let otherz = other.estimatedpos.z;
         let otherd = other.estAntennaDelay;
         let otherc = other.variance;
+        console.log(`Sensor ${this.id}: Updating filter with measurement from sensor ${other.id}`);
+        console.log(`Sensor ${this.id}: Measurement: ${measure}`);
+        console.log(`Sensor ${this.id}: Other sensor position: (${otherx}, ${othery}, ${otherz})`);
+        console.log(`Sensor ${this.id}: Other sensor antenna delay: ${otherd}`);
+        console.log(`Sensor ${this.id}: Other sensor confidence: ${otherc}`);
         this.filter.update(measure, otherx, othery, otherz, otherd, otherc);
     }
     getPositionError() {
@@ -248,7 +264,9 @@ class Sensor {
         this.variance = estimated.w;
         this.estAntennaDelay = estimated.d;
         this.updateParticles();
-        this.popup.update();
+        if (this.popup){
+            this.popup.update();
+        }
     }
     
     updateFromMesh() {
@@ -268,7 +286,9 @@ class Sensor {
         } else {
             console.log('Sensor not initialized. Cannot update properties.');
         }
-        this.popup.update();
+        if (this.popup){
+            this.popup.update();
+        }
     }
     
     

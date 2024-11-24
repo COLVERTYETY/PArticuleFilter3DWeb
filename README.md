@@ -23,6 +23,7 @@ To run the demo, access the following [link](https://colvertyety.github.io/PArti
 ## Interactions:
 
 Use 'WASD' or 'ZQSD' to move the transparent cursor in the scene.
+Use 'lshift' and 'lctrl' to move the cursor up and down, respectively.
 
 Press 'Enter' to add a new node at the cursor's position.
 
