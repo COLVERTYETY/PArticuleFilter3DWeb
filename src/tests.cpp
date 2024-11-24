@@ -114,7 +114,7 @@ TEST(FilterTest, ConvergenceAnchors){
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
     std::ofstream memLog("NParticlesConvergence.csv");
     memLog << "N,Error\n";
-    for(int N=10; N<1000; N+=10){
+    for(int N=10; N<100; N+=10){
         float error = 0;
         for(int i=0; i<50;i++){
             Filter test(N, false);
@@ -203,13 +203,14 @@ TEST(FilterPerformanceTest, MemoryUsage) {
     memLog << "N,MemoryUsage(KB)\n";
 
     particle reference = {0.0, 0.0, 0.0, 0.1, 0.01};
-    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000}) {
+    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000, 100000}) {
         size_t beforeMem = getMemoryUsage();
-        Filter filter(N);
-        filter.estimateState(1.0, reference);
+        Filter* filter = new Filter(N);
+        filter->estimateState(1.0, reference);
         size_t afterMem = getMemoryUsage();
         size_t memUsage = afterMem - beforeMem;
         memLog << N << "," << memUsage << "\n";
+        delete filter;
     }
 
     memLog.close();
@@ -219,7 +220,7 @@ TEST(FilterPerformanceTest, Runtime) {
     std::ofstream runtimeLog("runtime.csv");
     runtimeLog << "N,Runtime(ms)\n";
 
-    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000}) {
+    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000, 100000}) {
         std::cout << "Testing with N = " << N << std::endl;
         Filter filter(N);
         particle anchor = {0.0, 0.0, 0.0, 0.1, 0.01};

@@ -81,7 +81,7 @@ particle Filter::getEstimate() const {
 
 void Filter::initParticles(float measurement, particle anchor) {
     for (int i = 0; i < particles.size(); i++) {
-        float ourAntennaDelay =1;
+        float ourAntennaDelay =0.1;
         float adjustedDistance = measurement;
         if (this->modelAntennaDelay){
             // Step 1: Remove the other anchor's antenna delay from the measurement
