@@ -38,18 +38,16 @@ class FilterWrapper {
             y: particle.y,
             z: particle.z,
             d: particle.d,
-            w: particle.w,
         };
     }
 
-    set(index, x, y, z, d, w) {
+    set(index, x, y, z, d) {
         this.sanityCheck();
         const particle = new FilterWrapper.module.particle();
         particle.x = x;
         particle.y = y;
         particle.z = z;
         particle.d = d;
-        particle.w = w;
         this.filterInstance.set(index, particle);
     }
 
@@ -63,31 +61,39 @@ class FilterWrapper {
         this.filterInstance.setN(n);
     }
 
-    update(measure, x, y, z, d, c) {
+    update(measure, P_NLOSS, estimatePos, estimateVar) {
         this.sanityCheck();
-        const particle = new FilterWrapper.module.particle();
-        particle.x = x;
-        particle.y = y;
-        particle.z = z;
-        particle.d = d;
-        particle.w = c;
-        
+        const particleAvg = new FilterWrapper.module.particle();
+        particleAvg.x = estimatePos.x;
+        particleAvg.y = estimatePos.y;
+        particleAvg.z = estimatePos.z;
+        particleAvg.d = estimatePos.d;
+
+        const particleVar = new FilterWrapper.module.particle();
+        particleVar.x = estimateVar.x;
+        particleVar.y = estimateVar.y;
+        particleVar.z = estimateVar.z;
+        particleVar.d = estimateVar.d;
+
         const startTime = performance.now();
-        this.filterInstance.estimateState(measure, particle);
+        this.filterInstance.estimateState(measure, P_NLOSS, particleAvg, particleVar);
         const endTime = performance.now();
         console.log(`estimateState call took ${endTime - startTime} milliseconds.`);
     }
 
     getEstimatedPosition() {
         this.sanityCheck();
-        const particle = this.filterInstance.getEstimate();
+        const particle = this.filterInstance.getEstimateAvg();
         return {
             x: particle.x,
             y: particle.y,
             z: particle.z,
             d: particle.d,
-            w: particle.w,
         };
+    }
+    getEstimatedVariance() {
+        this.sanityCheck();
+        return this.filterInstance.getEstimateVar();
     }
 }
 

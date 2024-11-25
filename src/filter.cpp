@@ -232,10 +232,10 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
         sum_w += likelihood;
     }
 
-    std::cout << "Sum of weights: " << sum_w << std::endl;
+    // std::cout << "Sum of weights: " << sum_w << std::endl;
     // Reinitialize particles if weights are too low
     if (sum_w <= 0.005f / particles.size()) {
-        std::cout << "Resampling due to low weights" << std::endl;
+        // std::cout << "Resampling due to low weights" << std::endl;
         initParticles(measurement, P_NLoss, anchorAvg, anchorVar);
         return;
     }
@@ -261,17 +261,17 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
         }
         float minVariance  = 1e-3f;
         if(i == oldi){
-            minVariance *=repcounter*1.01;
+            minVariance *=repcounter*1.2;
             repcounter++;
         } else{
-            repcounter = 0;
+            repcounter = 1;
         }
         oldi = i;
         // Resample particle with added Gaussian noise
         particle newParticle = particles[i];
-        newParticle.x += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.x)));
-        newParticle.y += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.y)));
-        newParticle.z += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.z)));
+        newParticle.x += randomGaussian(0, MAX(minVariance, repcounter*::sqrt(anchorVar.x)/10));
+        newParticle.y += randomGaussian(0, MAX(minVariance, repcounter*::sqrt(anchorVar.y)/10));
+        newParticle.z += randomGaussian(0, MAX(minVariance, repcounter*::sqrt(anchorVar.z)/10));
         newParticle.d = MAX(0,newParticle.d+randomGaussian(0, MAX(1e-7f, std::sqrt(anchorVar.d) / 10.0)));
         newParticles.push_back(newParticle);
     }
