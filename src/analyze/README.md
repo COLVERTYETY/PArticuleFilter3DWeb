@@ -4,7 +4,7 @@
 
 ## Geometric convergence
 
-The following showcases the evolution of the distance between estimates and real positions. In this test one round of updates are done to the anchors and then updates are only performed according to the mesh.
+The following showcases the evolution of the distance between estimates and real positions. In this test one round of updates are done to the anchors and then updates are only performed according to the mesh. This test uses a 1000 particles per filter, which is sub-optimal.
 
 ![geom_convergence](geometry_convergence.png)
 

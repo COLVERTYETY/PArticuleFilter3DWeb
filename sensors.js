@@ -58,9 +58,6 @@ class Sensor {
         this.createMesh();
         this.initParticles();
         this.updateProperties();
-
-        // wait for filter to be ready.
-        //  test the filter wrapper
         
     }
 

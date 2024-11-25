@@ -16,6 +16,9 @@ This is a demo of a particle filter algorithm running in a web browser. It showc
 
 - **! Work in Progress !**: Upcoming features include improved UI with shortcuts, modeling antenna delay, and better antenna delay modeling.
 
+## About the Particle Filter Algorithm
+
+You can find a report generated from tests on the particle filter in the `src/analyze` directory. [click here](src/analyze/README.md)
 
 ## How to Use
 To run the demo, access the following [link](https://colvertyety.github.io/PArticuleFilter3DWeb/).
