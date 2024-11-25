@@ -19,6 +19,8 @@ BINDINGS_SRC = bindings.cpp
 OUT_JS = filter.js
 OUT_WASM = filter.wasm
 
+VIZ_folder = analyze/
+
 # Build target
 all: $(OUT_JS)
 
@@ -32,6 +34,12 @@ tests: $(TESTS) $(SRC) $(HEADERS)
 
 run-tests: tests
 	./$(TEST_BIN)
+
+
+viz:
+	cd $(VIZ_folder) && for script in *.py; do \
+		python3 $$script; \
+	done
 
 # Clean generated files
 clean:

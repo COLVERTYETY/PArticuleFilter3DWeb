@@ -259,9 +259,9 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
             i = (i + 1) % particles.size();
             c += weights[i];
         }
-        float minVariance  = 1e-3f;
+        float minVariance  = 1e-1f;
         if(i == oldi){
-            minVariance *=repcounter*1.2;
+            minVariance *=repcounter*1.05;
             repcounter++;
         } else{
             repcounter = 1;

@@ -225,7 +225,7 @@ TEST(FilterPerformanceTest, Runtime) {
     runtimeLog << "N,Runtime(ms)\n";
 
     for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000, 100000}) {
-        std::cout << "Testing with N = " << N << std::endl;
+        // std::cout << "Testing with N = " << N << std::endl;
         Filter filter(N);
         particle anchor = {0.0, 0.0, 0.0, 0.1};
         particle anchorVar = {0.1, 0.1, 0.1, 0.1};
