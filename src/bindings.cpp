@@ -9,8 +9,7 @@ EMSCRIPTEN_BINDINGS(FilterModule) {
         .property("x", &particle::x)
         .property("y", &particle::y)
         .property("z", &particle::z)
-        .property("d", &particle::d)
-        .property("w", &particle::w);
+        .property("d", &particle::d);
 
     class_<Filter>("Filter")
         .constructor<int, bool>()
@@ -18,6 +17,7 @@ EMSCRIPTEN_BINDINGS(FilterModule) {
         .function("set", &Filter::set)
         .function("getN", &Filter::getN)
         .function("setN", &Filter::setN)
-        .function("getEstimate", &Filter::getEstimate)
-        .function("estimateState", &Filter::estimateState);
+        .function("estimateState", &Filter::estimateState)
+        .function("getEstimateAvg", &Filter::getEstimateAvg)
+        .function("getEstimateVar", &Filter::getEstimateVar);
 }

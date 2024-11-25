@@ -29,10 +29,14 @@ class Sensor {
         this.variance = 0;
         this.isAnchor = isAnchor;
         this.isInit = false;
+        this.estimated = null;
+        this.estimatedVar = null;
         if(isAnchor){
-            this.variance = 0.01; //high confidence
+            this.variance = 0.1; //high confidence
             this.estimatedpos = new THREE.Vector3(x, y, z);
             this.AntennaDelay = 0;
+            this.estimated = {x: x, y: y, z: z, d: this.AntennaDelay};
+            this.estimatedVar = {x: this.variance, y: this.variance, z: this.variance, d: 0.1};
         } else{
             this.variance = 1000; //low confidence
             this.estimatedpos = null;
@@ -208,8 +212,8 @@ class Sensor {
         let gtDistance = A.position.distanceTo(B.position);
         // let AntennaNoise= A.AntennaDelay*gtDistance + B.AntennaDelay*gtDistance;
         let AntennaNoise = 0;
-        // let gNoise = gaussianRandom(0, 0.1);
-        let gNoise = 0;
+        let gNoise = gaussianRandom(0, 0.1);
+        // let gNoise = 0;
         let distance = gtDistance + AntennaNoise + gNoise;
         console.log(`Measuring distance between sensor ${A.id} and sensor ${B.id}`);
         console.log(`disatnce is: ${distance}`);
@@ -222,23 +226,27 @@ class Sensor {
             this.particles[i].position.set(particle.x, particle.y, particle.z);
         }
         this.estimatedParticule.position.set(this.estimatedpos.x, this.estimatedpos.y, this.estimatedpos.z);
-        this.estimatedParticule.scale.set(this.variance, this.variance, this.variance);
+        this.estimatedParticule.scale.set(this.estimatedVar.x*2, this.estimatedVar.y*2, this.estimatedVar.z*2);
     }
 
 
     updateFilter(other){
         let measure = Sensor.Measure(this, other);
-        let otherx = other.estimatedpos.x;
-        let othery = other.estimatedpos.y;
-        let otherz = other.estimatedpos.z;
-        let otherd = other.estAntennaDelay;
-        let otherc = other.variance;
-        console.log(`Sensor ${this.id}: Updating filter with measurement from sensor ${other.id}`);
-        console.log(`Sensor ${this.id}: Measurement: ${measure}`);
-        console.log(`Sensor ${this.id}: Other sensor position: (${otherx}, ${othery}, ${otherz})`);
-        console.log(`Sensor ${this.id}: Other sensor antenna delay: ${otherd}`);
-        console.log(`Sensor ${this.id}: Other sensor confidence: ${otherc}`);
-        this.filter.update(measure, otherx, othery, otherz, otherd, otherc);
+        // let otherx = other.estimatedpos.x;
+        // let othery = other.estimatedpos.y;
+        // let otherz = other.estimatedpos.z;
+        // let otherd = other.estAntennaDelay;
+        // let otherc = other.variance;
+        // console.log(`Sensor ${this.id}: Updating filter with measurement from sensor ${other.id}`);
+        // console.log(`Sensor ${this.id}: Measurement: ${measure}`);
+        // console.log(`Sensor ${this.id}: Other sensor position: (${otherx}, ${othery}, ${otherz})`);
+        // console.log(`Sensor ${this.id}: Other sensor antenna delay: ${otherd}`);
+        // console.log(`Sensor ${this.id}: Other sensor confidence: ${otherc}`);
+        // this.filter.update(measure, otherx, othery, otherz, otherd, otherc);
+        const otherPos = { x: other.estimated.x, y: other.estimated.y, z: other.estimated.z, d: other.estimated.d };
+        const otherVar = { x: other.estimatedVar.x, y: other.estimatedVar.y, z: other.estimatedVar.z, d: other.estimatedVar.d };
+        const P_NLOSS = 0.0;
+        this.filter.update(measure, P_NLOSS, otherPos, otherVar);
     }
     getPositionError() {
         if (!this.estimatedpos) return 0;
@@ -248,6 +256,7 @@ class Sensor {
     getAntennaDelayError() {
         return Math.abs(this.AntennaDelay - this.estAntennaDelay);
     }
+
     updateFromAnchors() {
         this.startPulse();
         console.log(`Sensor ${this.id}: Updating properties from anchor sensors.`);
@@ -259,10 +268,11 @@ class Sensor {
         }
         this.isInit = true;
         // console.log(this.filter.getEstimatedPosition());
-        let estimated = this.filter.getEstimatedPosition();
-        this.estimatedpos = new THREE.Vector3(estimated.x, estimated.y, estimated.z);
-        this.variance = estimated.w;
-        this.estAntennaDelay = estimated.d;
+        this.estimated = this.filter.getEstimatedPosition();
+        this.estimatedVar = this.filter.getEstimatedVariance();
+        this.estimatedpos = new THREE.Vector3(this.estimated.x, this.estimated.y, this.estimated.z);
+        this.variance = (this.estimatedVar.x+this.estimatedVar.y+this.estimatedVar.z)/3;
+        this.estAntennaDelay = this.estimated.d;
         this.updateParticles();
         if (this.popup){
             this.popup.update();
@@ -278,9 +288,10 @@ class Sensor {
                     this.updateFilter(Sensor.sensorList[i]);
                 }
             }
-            let estimated = this.filter.getEstimatedPosition();
+            this.estimated = this.filter.getEstimatedPosition();
+            this.estimatedVar = this.filter.getEstimatedVariance();
             this.estimatedpos = new THREE.Vector3(estimated.x, estimated.y, estimated.z);
-            this.variance = estimated.w;
+            this.variance = (estimatedVar.x+estimatedVar.y+estimatedVar.z)/3;
             this.estAntennaDelay = estimated.d;
             this.updateParticles();
         } else {

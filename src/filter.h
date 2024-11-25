@@ -6,7 +6,7 @@
 
 // Define the particle particle structure
 struct particle {
-    float x, y, z, d, w;
+    float x, y, z, d;
 };
 
 // Define the Filter class
@@ -15,10 +15,12 @@ private:
     std::vector<particle> particles;
     int N;
     float w_sum;
-    particle estimate;
+    particle estimateAvg;
+    particle estimateVar;
     bool isInitialized = false;
     bool modelAntennaDelay = true;
-    void initParticles(float measurement, particle anchor);
+    void initParticles(float measurement,float P_NLoss, particle anchorAvg, particle anchorVar);
+    void updateEstimates();
 
 public:
     // Constructor to initialize the vector with N elements
@@ -29,8 +31,9 @@ public:
     void set(int i, particle d);
     int getN() const;
     void setN(int N);
-    particle getEstimate() const;
-    void estimateState(float measurement, particle anchor);
+    particle getEstimateAvg() const;
+    particle getEstimateVar() const;
+    void estimateState(float measurement, float P_NLoss, particle anchorAvg, particle anchorVar);
 
 };
 
@@ -38,4 +41,4 @@ public:
 float dist(particle p1, particle p2);
 float randomGaussian(float mean, float stddev);
 
-#endif // FILTER_H
+#endif // FILTER_H 
