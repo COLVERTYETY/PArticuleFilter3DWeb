@@ -3,6 +3,14 @@
 #include <iostream>
 
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+float randomExponential(float lambda) {
+    float u = static_cast<float>(rand()) / RAND_MAX; // Uniform random value [0, 1)
+    return -std::log(1.0f - u) / lambda;
+}
+
 float randomGaussian(float mean, float stddev) {
     static bool hasSpare = false;
     static float spare;
@@ -39,9 +47,8 @@ float dist(particle p1, particle p2) {
 Filter::Filter(int N, bool modelAntennaDelay) {
     this->N = N;
     this->modelAntennaDelay = modelAntennaDelay;
-    // particles.resize(N, {0, 0, 0, 0, 0});
     try {
-        particles.resize(N, {0, 0, 0, 0, 0}); // Potentially problematic for large N
+        particles.resize(N, {0, 0, 0, 0}); // Potentially problematic for large N
     } catch (const std::bad_alloc &e) {
         std::cerr << "Memory allocation failed for N = " << N << ": " << e.what() << std::endl;
         throw;
@@ -71,195 +78,204 @@ int Filter::getN() const {
 
 void Filter::setN(int N) {
     this->N = N;
-    this->particles.resize(N, {0, 0, 0, 0, 0});
+    this->particles.resize(N, {0, 0, 0, 0});
     this->isInitialized = false;
 }
 
-particle Filter::getEstimate() const {
-    return this->estimate;
+particle Filter::getEstimateAvg() const {
+    return this->estimateAvg;
 }
 
-void Filter::initParticles(float measurement, particle anchor) {
-    for (int i = 0; i < particles.size(); i++) {
-        float ourAntennaDelay =0.1;
+particle Filter::getEstimateVar() const {
+    return this->estimateVar;
+}
+
+
+
+
+void Filter::initParticles(float measurement, float P_NLoss, particle anchorAvg, particle anchorVar) {
+    if (particles.empty()) {
+        throw std::runtime_error("Particles vector is empty. Initialize the particles before calling initParticles.");
+    }
+
+    for (int i = 0; i < particles.size(); ++i) {
+        float ourAntennaDelay = 0.0f;
         float adjustedDistance = measurement;
-        if (this->modelAntennaDelay){
-            // Step 1: Remove the other anchor's antenna delay from the measurement
-            float otherAntennaDelay = randomGaussian(anchor.d, std::sqrt(anchor.w)); // Estimated with Gaussian variance
+
+        // Step 1: Model antenna delay using exponential distribution
+        if (this->modelAntennaDelay) {
+            const float lambda = 10.0f; // 10 gives ~0.1 as the most likely value -> exponential distribution only used for initialization
+
+            // Generate our antenna delay in the range [0, 1)
+            do {
+                ourAntennaDelay = randomExponential(lambda);
+            } while (ourAntennaDelay >= 1.0f);
+
+            // Adjust measurement for antenna delay
+            float otherAntennaDelay = randomGaussian(anchorAvg.d, std::sqrt(anchorVar.d));
             float correctedMeasurement = measurement - otherAntennaDelay * measurement;
-            // Step 2: Estimate this particle's antenna delay
-            ourAntennaDelay = randomGaussian(1, std::sqrt(anchor.w));
-            // Step 3: Remove our antenna delay from the corrected measurement
+
             adjustedDistance = correctedMeasurement - ourAntennaDelay * measurement;
-            // adjusted distanc shouldn't be negative
+
+            // Ensure non-negative adjusted distance
             if (adjustedDistance < 0) {
                 adjustedDistance = measurement;
-                ourAntennaDelay =1;
             }
-        } else{
-            adjustedDistance = measurement+ randomGaussian(0, std::sqrt(anchor.w));
+        } else {
+            // Add Gaussian noise to the measurement directly -> lets move this to the coordinates
+            adjustedDistance = measurement;// + randomGaussian(0, std::sqrt(anchorVar.d));
         }
-        // Step 4: Initialize the particle's position on a sphere with Gaussian noise
-        float noisyDistance = adjustedDistance; // + randomGaussian(0, std::sqrt(anchor.w));
 
-        // Generate random spherical coordinates
+        // Step 2: Handle P_NLoss
+        // if (static_cast<float>(rand()) / RAND_MAX < P_NLoss) {
+        //     // Add constant error or Gaussian noise to simulate loss
+        //     adjustedDistance += randomGaussian(5.0f, 1.0f); // how should we choose these values?
+        // }
+
+        // Step 3: Initialize the particle's position using spherical coordinates
         float azimuthalAngle = static_cast<float>(rand()) / RAND_MAX * 2.0f * M_PI; // 0 to 2π
-        float polarAngle = static_cast<float>(rand()) / RAND_MAX * M_PI; // 0 to π
+        float polarAngle = static_cast<float>(rand()) / RAND_MAX * M_PI;           // 0 to π
 
-        // Convert spherical coordinates to Cartesian
-        float x = anchor.x + noisyDistance * std::sin(polarAngle) * std::cos(azimuthalAngle);
-        float y = anchor.y + noisyDistance * std::sin(polarAngle) * std::sin(azimuthalAngle);
-        float z = anchor.z + noisyDistance * std::cos(polarAngle);
+        float sinPolar = std::sin(polarAngle);
+        float cosPolar = std::cos(polarAngle);
+        float sinAzimuthal = std::sin(azimuthalAngle);
+        float cosAzimuthal = std::cos(azimuthalAngle);
 
-        // Step 5: Assign the particle properties
-        particles[i] = {x, y, z, ourAntennaDelay, 1.0f / N};
+        float x = anchorAvg.x + randomGaussian(0, std::sqrt(anchorVar.x)) + adjustedDistance * sinPolar * cosAzimuthal;
+        float y = anchorAvg.y + randomGaussian(0, std::sqrt(anchorVar.y)) + adjustedDistance * sinPolar * sinAzimuthal;
+        float z = anchorAvg.z + randomGaussian(0, std::sqrt(anchorVar.z)) + adjustedDistance * cosPolar;
+
+
+        // Step 4: Assign properties to the particle
+        particles[i] = {x, y, z, ourAntennaDelay};
     }
-    estimate.x = anchor.x;
-    estimate.y = anchor.y;
-    estimate.z = anchor.z;
-    estimate.d = anchor.d;
-    // Estimate variance
-    float variance = 0;
-    for (int i = 0; i < particles.size(); i++) {
-        float distance = dist(particles[i], estimate);
-        variance += (particles[i].w) * std::pow(distance, 2);
-    }
-    estimate.w = variance;
+
+    // Step 5: Compute estimate average and variance
+    updateEstimates();
+
     isInitialized = true;
 }
 
 
+void Filter::updateEstimates() {
+    // this update strategy uses frequency rather than weights
+    float x = 0.0f, y = 0.0f, z = 0.0f, d = 0.0f;
+    float varx = 0.0f, vary = 0.0f, varz = 0.0f, vard = 0.0f;
 
+    // Update the estimate average
+    for (const auto& p : particles) {
+        x += p.x;
+        y += p.y;
+        z += p.z;
+        d += p.d;
+    }
+    estimateAvg = {x / particles.size(), y / particles.size(), z / particles.size(), d / particles.size()};
 
-void Filter::estimateState(float measurement, particle anchor) {
+    // Update the estimate variance
+    for (const auto& p : particles) {
+        varx += std::pow(p.x - estimateAvg.x, 2);
+        vary += std::pow(p.y - estimateAvg.y, 2);
+        varz += std::pow(p.z - estimateAvg.z, 2);
+        vard += std::pow(p.d - estimateAvg.d, 2);
+    }
+    estimateVar = {varx / particles.size(), vary / particles.size(), varz / particles.size(), vard / particles.size()};
+}
+
+void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg, particle anchorVar) {
     if (!isInitialized) {
         // Initialize particles if not already initialized
-        initParticles(measurement, anchor);
+        initParticles(measurement, P_NLoss, anchorAvg, anchorVar);
         return;
     }
 
-    float sum_w = 0;
+    std::vector<float> weights(particles.size(), 0.0f);
+    float sum_w = 0.0f;
 
     // Update particle weights based on measurement
     for (int i = 0; i < particles.size(); i++) {
-        // Calculate distance between particle and anchor in 3D
-        float distance = dist(particles[i], anchor);
+        float distance = dist(particles[i], anchorAvg);
 
-        // Calculate the error, accounting for antenna delay
-        float delayErrorComponent = modelAntennaDelay ? particles[i].d * measurement : 0;
-        float error = std::abs(measurement - (distance + delayErrorComponent));
-        float rerror = measurement - (distance + delayErrorComponent);
+        // Compute error, including delay error component if modeled
+        float ourDelayErrorComponent = modelAntennaDelay ? particles[i].d * measurement : 0.0f;
+        float anchorDelayErrorComponent = modelAntennaDelay ? anchorAvg.d * measurement : 0.0f;
+        float rerror = measurement - (distance + ourDelayErrorComponent + anchorDelayErrorComponent);
+        float error = std::abs(rerror);
 
-        float regularized_factor = anchor.w * anchor.w + 0.01;
-        // Compute likelihood (Gaussian probability)
-        float likelihood = std::exp(-error * error / (2 * regularized_factor));
+        float dx = particles[i].x - anchorAvg.x;
+        float dy = particles[i].y - anchorAvg.y;
+        float dz = particles[i].z - anchorAvg.z;
 
-        // there is room to improve
-        if (std::pow(rerror,2) -2*std::pow(anchor.w,2)*std::log(1.01) > 0){
-            // Move the particle to improve likelihood by 1%
+        // Compute the total 3D distance
+        float norm = std::sqrt(dx * dx + dy * dy + dz * dz);
+        // Avoid division by zero for zero distance
+        if (norm == 0.0f) norm = 1e-6f;
+        // Normalize the vector difference
+        float nx = dx / norm;
+        float ny = dy / norm;
+        float nz = dz / norm;
 
-            // Calculate the unit vector from the particle to the anchor
-            float dx = anchor.x - particles[i].x;
-            float dy = anchor.y - particles[i].y;
-            float dz = anchor.z - particles[i].z;
-            float norm = std::sqrt(dx * dx + dy * dy + dz * dz);
-
-            // Normalize the direction vector
-            if (norm > 0) {
-                dx /= norm;
-                dy /= norm;
-                dz /= norm;
-            }
-
-            // Calculate the adjustment magnitude
-            float adjustment = std::sqrt(std::pow(rerror, 2) - 2 * std::pow(anchor.w, 2) * std::log(1.01));
-
-            // Update the particle's position
-            particles[i].x += dx * adjustment;
-            particles[i].y += dy * adjustment;
-            particles[i].z += dz * adjustment;
-
-        }
+        float e_x = nx * rerror;
+        float e_y = ny * rerror;
+        float e_z = nz * rerror;
+        const float regFactor = 1e-6f;
+        // Compute the likelihood using per-axis variances
+        float likelihood = std::exp(
+            -0.5f * (
+                (e_x * e_x) / (anchorVar.x + regFactor) +
+                (e_y * e_y) / (anchorVar.y + regFactor) +
+                (e_z * e_z) / (anchorVar.z + regFactor)
+            )
+        );
 
         // Update particle weight
-        particles[i].w = likelihood;
+        weights[i] = likelihood;
         sum_w += likelihood;
     }
 
-    // Check if weights are too low; reinitialize if necessary  estimate.w / (10 * N)
-    if (sum_w <= 0.005/particles.size()) {
-        initParticles(measurement, anchor);
+    std::cout << "Sum of weights: " << sum_w << std::endl;
+    // Reinitialize particles if weights are too low
+    if (sum_w <= 0.005f / particles.size()) {
+        std::cout << "Resampling due to low weights" << std::endl;
+        initParticles(measurement, P_NLoss, anchorAvg, anchorVar);
         return;
     }
 
     // Normalize weights
-    float avgw = 0;
-    for (int i = 0; i < particles.size(); i++) {
-        particles[i].w /= sum_w;
-        avgw += particles[i].w;
+    for (int i=0;i<weights.size();i++){
+        weights[i] /= sum_w;
     }
-    avgw /= particles.size();
-
-    // Estimate position (weighted average)
-    particle estimated = {0, 0, 0, 0, 0};
-    for (int i = 0; i < particles.size(); i++) {
-        estimated.x += particles[i].x * particles[i].w;
-        estimated.y += particles[i].y * particles[i].w;
-        estimated.z += particles[i].z * particles[i].w;
-        estimated.d += particles[i].d * particles[i].w;
-    }
-    
-    // Estimate variance
-    float variance = 0;
-    for (int i = 0; i < particles.size(); i++) {
-        float distance = dist(particles[i], estimated);
-        variance += (particles[i].w) * std::pow(distance, 2);
-    }
-    // float variance = 0;
-    // float unweighted_variance = 0;
-
-    // for (int i = 0; i < particles.size(); i++) {
-    //     float distance = dist(particles[i], estimated);
-    //     variance += particles[i].w * std::pow(distance, 2);
-    //     unweighted_variance += std::pow(distance, 2);
-    // }
-
-    // unweighted_variance /= particles.size(); // Normalize by number of particles
-
-    // std::cout << "Weighted variance: " << variance << ", Unweighted variance: " << unweighted_variance<< " anchor w was: "<<anchor.w << std::endl;
-    estimated.w = variance;
-    this->estimate = estimated;
 
     // Resample particles using low-variance resampling
     std::vector<particle> newParticles;
-    float wTarget = 1.0 / particles.size();
+    float wTarget = 1.0f / particles.size();
     float r = static_cast<float>(rand()) / RAND_MAX * wTarget;
-    float c = particles[0].w;
+    float c = weights[0];
     int i = 0;
-    int counter = 0;
+    int oldi = 0;
+    int repcounter = 0;
     for (int m = 0; m < particles.size(); m++) {
         float U = r + m * wTarget;
         while (U > c) {
-            i++;
-            i = i % particles.size();
-            c += particles[i].w;
-            // if (i%10 == 0){
-            //     std::cout << "U c " << U<<" "<<c << std::endl;
-            // }
-            counter++;
-            if(counter%(1000*N) ==0){
-                std::cout << "resampling counter is too high " << counter << std::endl;
-                std::cerr << "Resampling is taking too long, aborting" << std::endl;
-                throw std::runtime_error("Resampling is taking too long, possible infinite loop");
-            }
+            i = (i + 1) % particles.size();
+            c += weights[i];
         }
-        // Clone particle and add Gaussian noise for resampling
-        float noise_scale = std::max(0.1f, std::sqrt(variance) / 1000.0f); // Decrease noise as variance drops
+        float minVariance  = 1e-3f;
+        if(i == oldi){
+            minVariance *=repcounter*1.01;
+            repcounter++;
+        } else{
+            repcounter = 0;
+        }
+        oldi = i;
+        // Resample particle with added Gaussian noise
         particle newParticle = particles[i];
-        newParticle.x += randomGaussian(0, noise_scale);
-        newParticle.y += randomGaussian(0, noise_scale);
-        newParticle.z += randomGaussian(0, noise_scale);
+        newParticle.x += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.x)));
+        newParticle.y += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.y)));
+        newParticle.z += randomGaussian(0, MAX(minVariance, std::sqrt(anchorVar.z)));
+        newParticle.d = MAX(0,newParticle.d+randomGaussian(0, MAX(1e-7f, std::sqrt(anchorVar.d) / 10.0)));
         newParticles.push_back(newParticle);
     }
-    particles = newParticles; // Replace particles with resampled particles
+    particles = newParticles;
+    updateEstimates();
 }
+
