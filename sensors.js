@@ -290,9 +290,9 @@ class Sensor {
             }
             this.estimated = this.filter.getEstimatedPosition();
             this.estimatedVar = this.filter.getEstimatedVariance();
-            this.estimatedpos = new THREE.Vector3(estimated.x, estimated.y, estimated.z);
-            this.variance = (estimatedVar.x+estimatedVar.y+estimatedVar.z)/3;
-            this.estAntennaDelay = estimated.d;
+            this.estimatedpos = new THREE.Vector3(this.estimated.x, this.estimated.y, this.estimated.z);
+            this.variance = (this.estimated.x+this.estimated.y+this.estimated.z)/3;
+            this.estAntennaDelay = this.estimated.d;
             this.updateParticles();
         } else {
             console.log('Sensor not initialized. Cannot update properties.');
