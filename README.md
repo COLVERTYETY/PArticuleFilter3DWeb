@@ -1,6 +1,6 @@
 # 3D particule filter web demo
 
-This is a demo of a particle filter algorithm running in a web browser. It showcases a strategy for estimating the position of nodes in 3D space using only ranging data from either anchors or other nodes. This implementation extends the 2D version by incorporating three-dimensional calculations and visualizations. At least one anchor update is required for a valid solution.
+This is a demo of a particle filter algorithm running in a web browser. It showcases a strategy for estimating the position of nodes in 3D space using only ranging data from either anchors or other nodes. This implementation extends [the 2D version](https://github.com/COLVERTYETY/ParticuleFilterWeb) by incorporating three-dimensional calculations and visualizations. At least one anchor update is required for a valid solution.
 
 ![image](assets/exlain.png)
 
