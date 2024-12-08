@@ -2,6 +2,7 @@
 #include <fstream>
 #include <chrono>
 #include <sys/resource.h> // For memory usage
+#include <algorithm>
 #include "filter.h"
 
 // Helper function to get current memory usage in kilobytes
@@ -146,6 +147,7 @@ TEST(FilterTest, ConvergenceAnchors){
         }
         
     }
+    memLog.close();
 }
 
 TEST(FilterTest, EstimateGeometry) {
@@ -197,7 +199,372 @@ TEST(FilterTest, EstimateGeometry) {
         //  check that the estimated position is close to the true position
         EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
     }
+    memLog.close();
     
+}
+
+TEST(Strategy, worstFirst) {
+    // in this test we perform one round of updates from teh anchors then only from the mesh 
+    std::ofstream memLog("Strategy_WorstFirst.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    int indexes[4] = {0, 1, 2, 3};
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0};
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        // memLog << i << "," << nodePositions[i].x << "," << nodePositions[i].y << "," << nodePositions[i].z << "," << nodePositions[i].d << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "\n";
+        for( int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N =30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N; i++){
+        //  reorder the nodes, so that worst nodes are updated first
+        std::sort(indexes, indexes+4, [&nodes](int i1, int i2){
+            return nodes[i1].getEstimateVarAvg() > nodes[i2].getEstimateVarAvg();
+        });
+        for(int j=0; j<4; j++){
+            for(int k=3; k>=0; k--){ // iterate in reverse order to use the best ones first
+                if(j!=k){
+                    nodes[indexes[j]].estimateState(dist(nodePositions[indexes[j]], nodePositions[indexes[k]]), 0, nodes[indexes[k]].getEstimateAvg(), nodes[indexes[k]].getEstimateVar());
+                    particle estimate = nodes[indexes[j]].getEstimateAvg();
+                    particle estimateVar = nodes[indexes[j]].getEstimateVar();
+                    memLog << indexes[j] << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[indexes[j]]) << "\n";
+                }
+            }
+        }
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        //  check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
+    
+}
+
+TEST(Strategy, BestFirst) {
+    // in this test we perform one round of updates from teh anchors then only from the mesh 
+    std::ofstream memLog("Strategy_BestFirst.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    int indexes[4] = {0, 1, 2, 3};
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0};
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        // memLog << i << "," << nodePositions[i].x << "," << nodePositions[i].y << "," << nodePositions[i].z << "," << nodePositions[i].d << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "\n";
+        for( int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N =30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N; i++){
+        //  reorder the nodes, so that worst nodes are updated first
+        std::sort(indexes, indexes+4, [&nodes](int i1, int i2){
+            return nodes[i1].getEstimateVarAvg() < nodes[i2].getEstimateVarAvg();
+        });
+        for(int j=0; j<4; j++){
+            for(int k=3; k>=0; k--){ // iterate in reverse order to use the best ones first
+                if(j!=k){
+                    nodes[indexes[j]].estimateState(dist(nodePositions[indexes[j]], nodePositions[indexes[k]]), 0, nodes[indexes[k]].getEstimateAvg(), nodes[indexes[k]].getEstimateVar());
+                    particle estimate = nodes[indexes[j]].getEstimateAvg();
+                    particle estimateVar = nodes[indexes[j]].getEstimateVar();
+                    memLog << indexes[j] << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[indexes[j]]) << "\n";
+                }
+            }
+        }
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        //  check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
+}
+
+TEST(Strategy, Random) {
+    // in this test we perform one round of updates from the anchors then only from the mesh 
+    std::ofstream memLog("Strategy_Random.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    int indexes[4] = {0, 1, 2, 3};
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0}; 
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        for(int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N = 30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N; i++){
+        std::random_shuffle(indexes, indexes + 4);
+        for(int j=0; j<4; j++){
+            for(int k=0; k<4; k++){
+                if(j != k){
+                    nodes[indexes[j]].estimateState(dist(nodePositions[indexes[j]], nodePositions[indexes[k]]), 0, nodes[indexes[k]].getEstimateAvg(), nodes[indexes[k]].getEstimateVar());
+                    particle estimate = nodes[indexes[j]].getEstimateAvg();
+                    particle estimateVar = nodes[indexes[j]].getEstimateVar();
+                    memLog << indexes[j] << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[indexes[j]]) << "\n";
+                }
+            }
+        }
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        // check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
+}
+
+TEST(Strategy, OnlyBetter) {
+    // in this test we perform one round of updates from teh anchors then only from the mesh 
+    std::ofstream memLog("Strategy_onlyBetter.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0};
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        // memLog << i << "," << nodePositions[i].x << "," << nodePositions[i].y << "," << nodePositions[i].z << "," << nodePositions[i].d << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0 << "\n";
+        for( int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N =30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N; i++){
+        //  reorder the nodes, so that worst nodes are updated first
+        for(int j=0; j<4; j++){
+            for(int k=0; k<4; k++){ // iterate in reverse order to use the best ones first
+                if(j!=k && nodes[j].getEstimateVarAvg() > nodes[k].getEstimateVarAvg()){
+                    nodes[j].estimateState(dist(nodePositions[j], nodePositions[k]), 0, nodes[k].getEstimateAvg(), nodes[k].getEstimateVar());
+                    particle estimate = nodes[j].getEstimateAvg();
+                    particle estimateVar = nodes[j].getEstimateVar();
+                    memLog << j << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[j]) << "\n";
+                }
+            }
+        }
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        //  check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
+    
+}
+
+
+TEST(Strategy, OnlyWorstfromBetter) {
+    // in this test we perform one round of updates from the anchors then only from the mesh 
+    std::ofstream memLog("Strategy_onlyWorstfromBetter.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0};
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        for(int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N = 30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N*4; i++){
+        // find the worst node
+        int worstNodeIndex = 0;
+        float maxVar = nodes[0].getEstimateVarAvg();
+        for(int j=1; j<4; j++){
+            float var = nodes[j].getEstimateVarAvg();
+            if(var > maxVar){
+                maxVar = var;
+                worstNodeIndex = j;
+            }
+        }
+        // update the worst node using the best node
+        int bestNodeIndex = (worstNodeIndex + 1) % 4;
+        for(int k=0; k<4; k++){
+            if(k != worstNodeIndex && nodes[k].getEstimateVarAvg() < nodes[bestNodeIndex].getEstimateVarAvg()){
+                bestNodeIndex = k;
+            }
+        }
+        nodes[worstNodeIndex].estimateState(dist(nodePositions[worstNodeIndex], nodePositions[bestNodeIndex]), 0, nodes[bestNodeIndex].getEstimateAvg(), nodes[bestNodeIndex].getEstimateVar());
+        particle estimate = nodes[worstNodeIndex].getEstimateAvg();
+        particle estimateVar = nodes[worstNodeIndex].getEstimateVar();
+        memLog << worstNodeIndex << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[worstNodeIndex]) << "\n";
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        // check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
+}
+
+TEST(Strategy, OnlyWorstAxisFromBetter) {
+    // in this test we perform one round of updates from the anchors then only from the mesh 
+    std::ofstream memLog("Strategy_onlyWorstAxisFromBetter.csv");
+    memLog << "id,x,y,z,d,varx,vary,varz,vard,distance\n";
+    Filter node0(5000, false);
+    Filter node1(5000, false);
+    Filter node2(5000, false);
+    Filter node3(5000, false);
+    particle node0Position{ -5, -3, 2, 0.0};
+    particle node1Position{ -10, 1.0, 12, 0.0};
+    particle node2Position{ -14, 10, 18, 0.0};
+    particle node3Position{ -20, 0.5, 32, 0.0};
+    particle anchor0{ 2, 0.5, -8, 0.0};
+    particle anchor1{ 12, 0.5, -8, 0.0};
+    particle anchor2{ 12, 14, -8, 0.0};
+    particle anchor3{ 12, 0.5, 2, 0.0};
+    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    std::vector<Filter> nodes = {node0, node1, node2, node3};
+    std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
+    std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
+    // perform one round of updates from the anchors
+    for(int i=0; i<4; i++){
+        for(int j=0; j<4; j++){
+            nodes[i].estimateState(dist(nodePositions[i], anchors[j]), 0, anchors[j], anchorVars);
+        }
+        particle estimate = nodes[i].getEstimateAvg();
+        particle estimateVar = nodes[i].getEstimateVar();
+        memLog << i << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[i]) << "\n";
+    }
+    int N = 30;
+    // perform N rounds of updates from mesh
+    for(int i=0; i<N*4; i++){
+        for(int j=0; j<4; j++){
+            // find the worst axis for the current node
+            particle estimateVar = nodes[j].getEstimateVar();
+            int worstAxis = 0;
+            float maxVar = estimateVar.x;
+            if(estimateVar.y > maxVar) {
+                maxVar = estimateVar.y;
+                worstAxis = 1;
+            }
+            if(estimateVar.z > maxVar) {
+                maxVar = estimateVar.z;
+                worstAxis = 2;
+            }
+            if(estimateVar.d > maxVar) {
+                maxVar = estimateVar.d;
+                worstAxis = 3;
+            }
+            // find one other node that is better on that axis
+            int bestNodeIndex = -1;
+            for(int k=0; k<4; k++){
+                if(k != j){
+                    particle otherVar = nodes[k].getEstimateVar();
+                    if((worstAxis == 0 && otherVar.x < maxVar) ||
+                       (worstAxis == 1 && otherVar.y < maxVar) ||
+                       (worstAxis == 2 && otherVar.z < maxVar) ||
+                       (worstAxis == 3 && otherVar.d < maxVar)) {
+                        bestNodeIndex = k;
+                        break;
+                    }
+                }
+            }
+            if(bestNodeIndex != -1){
+                nodes[j].estimateState(dist(nodePositions[j], nodePositions[bestNodeIndex]), 0, nodes[bestNodeIndex].getEstimateAvg(), nodes[bestNodeIndex].getEstimateVar());
+                particle estimate = nodes[j].getEstimateAvg();
+                particle estimateVar = nodes[j].getEstimateVar();
+                memLog << j << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePositions[j]) << "\n";
+            }
+        }
+    }
+    // check convergence of the nodes
+    for(int i=0; i<4; i++){
+        // check that the estimated position is close to the true position
+        EXPECT_NEAR(dist(nodes[i].getEstimateAvg(), nodePositions[i]), 0.0, 1.0);
+    }
+    memLog.close();
 }
 
 // Log memory usage for different N values

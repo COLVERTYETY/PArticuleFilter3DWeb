@@ -33,6 +33,7 @@ public:
     void setN(int N);
     particle getEstimateAvg() const;
     particle getEstimateVar() const;
+    float getEstimateVarAvg() const;
     void estimateState(float measurement, float P_NLoss, particle anchorAvg, particle anchorVar);
 
 };

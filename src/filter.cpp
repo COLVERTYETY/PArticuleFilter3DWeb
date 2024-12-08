@@ -90,6 +90,10 @@ particle Filter::getEstimateVar() const {
     return this->estimateVar;
 }
 
+float Filter::getEstimateVarAvg() const {
+    return (this->estimateVar.x + this->estimateVar.y + this->estimateVar.z) / 3.0f; 
+}
+
 
 
 
@@ -207,7 +211,7 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
 
         // Compute the total 3D distance
         float norm = std::sqrt(dx * dx + dy * dy + dz * dz);
-        // Avoid division by zero for zero distance
+        // Avoid division by zero 
         if (norm == 0.0f) norm = 1e-6f;
         // Normalize the vector difference
         float nx = dx / norm;
@@ -221,9 +225,9 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
         // Compute the likelihood using per-axis variances
         float likelihood = std::exp(
             -0.5f * (
-                (e_x * e_x) / (anchorVar.x + regFactor) +
-                (e_y * e_y) / (anchorVar.y + regFactor) +
-                (e_z * e_z) / (anchorVar.z + regFactor)
+                (e_x * e_x) / (MAX(anchorVar.x , regFactor)) +
+                (e_y * e_y) / (MAX(anchorVar.y , regFactor)) +
+                (e_z * e_z) / (MAX(anchorVar.z , regFactor))
             )
         );
 
@@ -259,8 +263,9 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
             i = (i + 1) % particles.size();
             c += weights[i];
         }
-        float minVariance  = 1e-1f;
+        float minVariance  = 1e-5f;
         if(i == oldi){
+            // std::cout << "Repeated sampling " << repcounter << std::endl;
             minVariance *=repcounter*1.05;
             repcounter++;
         } else{
