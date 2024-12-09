@@ -129,10 +129,10 @@ TEST(FilterTest, ConvergenceAnchors){
     particle anchor3{ 12, 0.5, 2, 0.0};
     particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
-    int N =100;
+    int N =1000;
     int estimationRounds = 5;
     for(int i=1;i<N;i++){
-        Filter test(i*100, false);
+        Filter test(i*20, false);
         for (size_t est = 0; est < estimationRounds; est++)
         {
             for(int j=0; j<4; j++){
@@ -140,7 +140,7 @@ TEST(FilterTest, ConvergenceAnchors){
             }
             particle estimate = test.getEstimateAvg();
             particle estimateVar = test.getEstimateVar();
-            memLog << i*100 << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePosition) << "\n";
+            memLog << test.getN() << "," << estimate.x << "," << estimate.y << "," << estimate.z << "," << estimate.d << "," << estimateVar.x << "," << estimateVar.y << "," << estimateVar.z << "," << estimateVar.d << "," << dist(estimate, nodePosition) << "\n";
             // if(dist(test.getEstimateAvg(), nodePosition)<0.5){
             //     break;
             // }
@@ -220,7 +220,7 @@ TEST(Strategy, worstFirst) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -278,7 +278,7 @@ TEST(Strategy, BestFirst) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -335,7 +335,7 @@ TEST(Strategy, Random) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -387,7 +387,7 @@ TEST(Strategy, OnlyBetter) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -442,7 +442,7 @@ TEST(Strategy, OnlyWorstfromBetter) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -504,7 +504,7 @@ TEST(Strategy, OnlyWorstAxisFromBetter) {
     particle anchor1{ 12, 0.5, -8, 0.0};
     particle anchor2{ 12, 14, -8, 0.0};
     particle anchor3{ 12, 0.5, 2, 0.0};
-    particle anchorVars{ 0.045, 0.045, 0.045, 0.045};
+    particle anchorVars{ 0.1, 0.1, 0.1, 0.1};
     std::vector<Filter> nodes = {node0, node1, node2, node3};
     std::vector<particle> nodePositions = {node0Position, node1Position, node2Position, node3Position};
     std::vector<particle> anchors = {anchor0, anchor1, anchor2, anchor3};
@@ -591,7 +591,7 @@ TEST(FilterPerformanceTest, Runtime) {
     std::ofstream runtimeLog("runtime.csv");
     runtimeLog << "N,Runtime(ms)\n";
 
-    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000, 100000}) {
+    for (int N : {10, 100, 200, 600, 1000, 2000, 5000, 10000, 50000, 100000}) {
         // std::cout << "Testing with N = " << N << std::endl;
         Filter filter(N);
         particle anchor = {0.0, 0.0, 0.0, 0.1};

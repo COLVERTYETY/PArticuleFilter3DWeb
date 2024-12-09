@@ -2,6 +2,13 @@
 #include <cmath>
 #include <iostream>
 
+#ifdef ARDUINO
+  #include <ArduinoEigen.h>
+#else
+  #include <Eigen/Dense>
+#endif
+
+
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -194,42 +201,62 @@ void Filter::estimateState(float measurement, float P_NLoss, particle anchorAvg,
 
     std::vector<float> weights(particles.size(), 0.0f);
     float sum_w = 0.0f;
+    const float eta = 0.01f; // learning rate
+    Eigen::Vector3f anchorPos(anchorAvg.x, anchorAvg.y, anchorAvg.z);
+    // Define measurement noise covariance for ranging
+    const float sigma_r2 = 0.045; // average error of 4.5cm
+    // Define anchor variance as a diagonal covariance matrix
+    Eigen::Matrix3f SigmaAnchor = Eigen::Matrix3f::Zero(); // Initialize to zero
+    SigmaAnchor(0, 0) = anchorVar.x;
+    SigmaAnchor(1, 1) = anchorVar.y;
+    SigmaAnchor(2, 2) = anchorVar.z;
 
     // Update particle weights based on measurement
     for (int i = 0; i < particles.size(); i++) {
         float distance = dist(particles[i], anchorAvg);
 
-        // Compute error, including delay error component if modeled
+        //  Step1: Compute error, including delay error component if modeled
         float ourDelayErrorComponent = modelAntennaDelay ? particles[i].d * measurement : 0.0f;
         float anchorDelayErrorComponent = modelAntennaDelay ? anchorAvg.d * measurement : 0.0f;
         float rerror = measurement - (distance + ourDelayErrorComponent + anchorDelayErrorComponent);
         float error = std::abs(rerror);
 
-        float dx = particles[i].x - anchorAvg.x;
-        float dy = particles[i].y - anchorAvg.y;
-        float dz = particles[i].z - anchorAvg.z;
-
-        // Compute the total 3D distance
-        float norm = std::sqrt(dx * dx + dy * dy + dz * dz);
-        // Avoid division by zero 
-        if (norm == 0.0f) norm = 1e-6f;
+        // Represent the particle's position as an Eigen vector
+        Eigen::Vector3f particlePos(particles[i].x, particles[i].y, particles[i].z);
+        // Compute the difference vector between the particle and the anchor
+        Eigen::Vector3f diff = particlePos - anchorPos;
+    
         // Normalize the vector difference
-        float nx = dx / norm;
-        float ny = dy / norm;
-        float nz = dz / norm;
+        float norm = diff.norm();
+        if (norm == 0.0f) norm = 1e-6f; // Avoid division by zero
+        Eigen::Vector3f n = diff / norm;
+           
 
-        float e_x = nx * rerror;
-        float e_y = ny * rerror;
-        float e_z = nz * rerror;
-        const float regFactor = 1e-6f;
-        // Compute the likelihood using per-axis variances
-        float likelihood = std::exp(
-            -0.5f * (
-                (e_x * e_x) / (MAX(anchorVar.x , regFactor)) +
-                (e_y * e_y) / (MAX(anchorVar.y , regFactor)) +
-                (e_z * e_z) / (MAX(anchorVar.z , regFactor))
-            )
-        );
+        // Step 2: Compute ranging covariance matrix using the direction vector
+        Eigen::Matrix3f SigmaRanging = sigma_r2 * (n * n.transpose());
+
+        // Step 3: Combine anchor variance and ranging covariance matrices
+        Eigen::Matrix3f Sigma = SigmaAnchor + SigmaRanging;
+
+        // Step 4: Invert covariance matrix and compute determinant
+        Eigen::Matrix3f SigmaInv = Sigma.inverse();
+        float detSigma = Sigma.determinant();
+
+        // Step 5: Compute the error vector in the direction of the difference vector
+        Eigen::Vector3f e = rerror * n;
+
+        const float regFactor = 1e-7f;
+        // Step 6: Compute the likelihood of the particle given the measurement
+        float likelihood = std::exp(-0.5f * e.transpose() * SigmaInv * e) / std::sqrt(std::pow(2 * M_PI, 3) * MAX(detSigma,regFactor));
+
+        // Eigen::Vector3f gradient = -SigmaInv * e ;
+        // // Update particle position
+        // Eigen::Vector3f delta_p = eta * gradient;
+        // particlePos += delta_p;
+        // // Update particle in the list
+        // particles[i].x = particlePos.x();
+        // particles[i].y = particlePos.y();
+        // particles[i].z = particlePos.z();
 
         // Update particle weight
         weights[i] = likelihood;
